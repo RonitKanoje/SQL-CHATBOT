@@ -3,7 +3,6 @@ import re
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langsmith import traceable
-
 from database.mysql import clean_sql, execute_read_query, validate_read_query
 from graph.state import ChatState
 from llm.gemini import explain_result, generate_sql
@@ -17,6 +16,7 @@ BLOCKED_USER_INTENT = re.compile(
     r"\b(update|delete|create|insert|drop|alter|truncate|replace|remove|modify)\b",
     re.IGNORECASE,
 )
+
 MAX_SQL_RETRIES = 2
 
 
@@ -31,10 +31,10 @@ def _chat_history(messages: list[BaseMessage] | None, max_messages: int = 8) -> 
     return "\n".join(lines)
 
 
-@traceable(name="Read Only Guardrail")
+@traceable(name="Read Only Guardrail", run_type="llm", tags=["guardrail", "validation"])
 def guardrail_node(state: ChatState) -> dict:
     question = state["user_message"]
-    is_safe = BLOCKED_USER_INTENT.search(question) is None
+    is_safe = BLOCKED_USER_INTENT.search(question) is None   ###
     if is_safe:
         return {
             "is_safe": True,
@@ -64,19 +64,16 @@ def guardrail_route(state: ChatState) -> str:
     return "allowed" if state.get("is_safe") else "blocked"
 
 
-@traceable(name="Blocked Response")
+@traceable(name="Blocked Response", run_type="llm", tags=["guardrail", "response"])
 def blocked_node(state: ChatState) -> dict:
-    answer = (
-        "I can help with read-only database questions, but I cannot perform "
-        "or generate update, delete, create, insert, drop, or alter operations."
-    )
+    answer = "I can help with read-only database questions, but I cannot perform or generate update, delete, create, insert, drop, or alter operations."
     return {
         "answer": answer,
         "messages": [AIMessage(content=answer)],
     }
 
 
-@traceable(name="Retrieve Schema")
+@traceable(name="Retrieve Schema", run_type="retriever", tags=["retrieval", "embeddings"])
 def retrieval_node(state: ChatState) -> dict:
     docs = retrieve_embed(state["user_message"])
     expanded_docs, join_candidates = expand_connected_tables(state["user_message"], docs)
@@ -86,7 +83,7 @@ def retrieval_node(state: ChatState) -> dict:
     }
 
 
-@traceable(name="Build Context")
+@traceable(name="Build Context", run_type="retriever", tags=["context", "sql"])
 def context_node(state: ChatState) -> dict:
     context = build_context(
         state.get("retrieved_docs", []),
@@ -95,7 +92,7 @@ def context_node(state: ChatState) -> dict:
     return {"context": context}
 
 
-@traceable(name="Generate SQL")
+@traceable(name="Generate SQL", run_type="llm", tags=["sql", "generation"])
 def generate_sql_node(state: ChatState) -> dict:
     validation_feedback = ""
     if state.get("validation_error"):
@@ -105,7 +102,7 @@ def generate_sql_node(state: ChatState) -> dict:
             "Generate a corrected read-only MySQL query."
         )
 
-    prompt = build_sql_generation_prompt(
+    prompt = build_sql_generation_prompt( #####
         question=state["user_message"],
         context=state.get("context", ""),
         chat_history=_chat_history(state.get("messages")),
@@ -120,7 +117,7 @@ def generate_sql_node(state: ChatState) -> dict:
     }
 
 
-@traceable(name="Validate SQL")
+@traceable(name="Validate SQL", run_type="tool", tags=["validation", "sql"])
 def validate_sql_node(state: ChatState) -> dict:
     is_valid, validation_error = validate_read_query(state.get("sql", ""))
     if is_valid:
@@ -154,7 +151,7 @@ def validate_sql_route(state: ChatState) -> str:
     return "failed"
 
 
-@traceable(name="SQL Failure Response")
+@traceable(name="SQL Failure Response", run_type="llm", tags=["failure", "response"])
 def sql_failure_node(state: ChatState) -> dict:
     answer = (
         "I could not generate a valid read-only SQL query for that request after "
@@ -167,21 +164,21 @@ def sql_failure_node(state: ChatState) -> dict:
     }
 
 
-@traceable(name="Execute SQL")
+@traceable(name="Execute SQL", run_type="tool", tags=["database", "execution"])
 def execute_sql_node(state: ChatState) -> dict:
     if state.get("error"):
         return {"sql_result": []}
 
     try:
         return {"sql_result": execute_read_query(state["sql"])}
-    except Exception as exc:
+    except Exception as exc:   
         return {
             "sql_result": [],
             "error": str(exc),
         }
 
 
-@traceable(name="Explain SQL Result")
+@traceable(name="Explain SQL Result", run_type="llm", tags=["explanation", "response"])
 def explain_result_node(state: ChatState) -> dict:
     result_payload = state.get("error") or json.dumps(
         state.get("sql_result", []),

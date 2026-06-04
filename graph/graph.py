@@ -1,5 +1,6 @@
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from langsmith import traceable
 
 from graph.nodes import (
     blocked_node,
@@ -56,4 +57,27 @@ def build_chatbot(checkpointer=None):
     graph.add_edge("execute_sql", "explain_result")
     graph.add_edge("explain_result", END)
 
-    return graph.compile(checkpointer=checkpointer or MemorySaver())
+    compiled = graph.compile(checkpointer=checkpointer or MemorySaver())
+    return compiled   ### 
+
+@traceable(name="Chat Graph", run_type="chain", tags=["langgraph"])
+def run_chatbot(user_message: str, thread_id: str = "test-thread"):
+    """Wrapper function to enable LangSmith tracing for the full graph execution"""
+    chatbot = build_chatbot()
+    response = chatbot.invoke(
+        {"user_message": user_message},
+        config={
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
+    )
+    return response
+
+
+if __name__ == "__main__":
+    print("Starting")
+    response = run_chatbot(
+        "Show the top 10 customers by revenue along with their total orders, invoices generated, payments made, support tickets raised, and average order value."
+    )
+    print(response["answer"])

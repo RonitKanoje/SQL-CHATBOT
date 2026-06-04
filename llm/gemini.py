@@ -5,7 +5,7 @@ from google.genai import types
 
 load_dotenv()
 
-GEMINI_LLM_MODEL = "gemini-2.5-flash"
+GEMINI_LLM_MODEL = "gemini-2.5-flash-lite"
 
 client = genai.Client()
 
@@ -14,7 +14,7 @@ def generate_text(prompt: str, temperature: float = 0.2) -> str:
     response = client.models.generate_content(
         model=GEMINI_LLM_MODEL,
         contents=prompt,
-        config=types.GenerateContentConfig(
+        config=types.GenerateContentConfig( #### what is this 
             temperature=temperature,
         ),
     )

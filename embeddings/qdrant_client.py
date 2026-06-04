@@ -1,5 +1,4 @@
 from types import SimpleNamespace
-
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types as genai_types

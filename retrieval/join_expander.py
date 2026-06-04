@@ -22,7 +22,7 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
 
 
 def load_schema_metadata(metadata_path: Path = METADATA_PATH) -> list[dict]:
-    with open(metadata_path, encoding="utf-8") as file:
+    with open(metadata_path, encoding="utf-8-sig") as file:
         return json.load(file)
 
 
