@@ -9,6 +9,7 @@ class ChatState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     is_safe: bool
     guardrail_reason: str
+    normalized_question: str
     retrieved_docs: list[Any]
     join_candidates: list[dict]
     context: str
@@ -19,3 +20,7 @@ class ChatState(TypedDict, total=False):
     sql_result: list[dict]
     error: str
     answer: str
+    request_started_at: float
+    timings: dict[str, float]
+    sql_cache_hit: bool
+    result_cache_hit: bool

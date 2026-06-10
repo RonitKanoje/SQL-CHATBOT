@@ -1,4 +1,6 @@
+from functools import lru_cache
 from types import SimpleNamespace
+
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types as genai_types
@@ -27,8 +29,17 @@ def embed_documents(texts: list[str]) -> list[list[float]]:
     return [embedding.values for embedding in result.embeddings]
 
 
+@lru_cache(maxsize=512)
+def _embed_query_cached(text: str) -> tuple[float, ...]:
+    return tuple(embed_documents([text])[0])
+
+
 def embed_query(text: str) -> list[float]:
-    return embed_documents([text])[0]
+    return list(_embed_query_cached(text))
+
+
+def clear_embedding_cache() -> None:
+    _embed_query_cached.cache_clear()
 
 
 embeddings = SimpleNamespace(
@@ -37,6 +48,7 @@ embeddings = SimpleNamespace(
 )
 
 
+@lru_cache(maxsize=8)
 def create_vector_store(collection_name: str) -> QdrantVectorStore:
     return QdrantVectorStore(
         client=client,

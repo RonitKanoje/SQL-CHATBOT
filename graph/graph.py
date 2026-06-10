@@ -61,7 +61,7 @@ def build_chatbot(checkpointer=None):
     return compiled   ### 
 
 @traceable(name="Chat Graph", run_type="chain", tags=["langgraph"])
-def run_chatbot(user_message: str, thread_id: str = "test-thread"):
+def run_chatbot(user_message: str, thread_id: str = "test-thread 124"):
     """Wrapper function to enable LangSmith tracing for the full graph execution"""
     chatbot = build_chatbot()
     response = chatbot.invoke(
