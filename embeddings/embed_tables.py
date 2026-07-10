@@ -26,7 +26,7 @@ def create_collection_if_not_exists() -> None:
 
 
 def load_schema_documents(metadata_path: Path = SCHEMA_METADATA_PATH) -> list[Document]:
-    with open(metadata_path, encoding="utf-8") as f:
+    with open(metadata_path, encoding="utf-8-sig") as f:
         schema_metadata = json.load(f)
 
     return [
